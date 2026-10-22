@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyPythonOnlineCalc</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f3f3f3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .calc-container {
+            background-color: #e6e6e6;
+            width: 320px;
+            padding: 6px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .calc-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .display-container {
+            padding: 10px 14px 20px 14px;
+            text-align: right;
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .expression-preview {
+            font-size: 15px;
+            color: #666;
+            height: 20px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .main-display {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: right;
+            font-size: 46px;
+            font-weight: 600;
+            color: #1a1a1a;
+            outline: none;
+        }
+
+        /* Keyboard Grid Style matching Windows Calc */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+        }
+
+        button {
+            height: 48px;
+            border: 1px solid transparent;
+            font-size: 16px;
+            font-weight: 400;
+            background-color: #f9f9f9;
+            color: #1b1b1b;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.05s ease;
+        }
+
+        button:hover {
+            background-color: #f2f2f2;
+            border-color: #cccccc;
+        }
+
+        button:active {
+            background-color: #e5e5e5;
+        }
+
+        /* Operators styling */
+        .btn-op {
+            background-color: #f3f3f3;
+            font-weight: 500;
+        }
+
+        /* Clear and delete keys */
+        .btn-utility {
+            background-color: #f3f3f3;
+        }
+
+        /* Equals key accent style */
+        .btn-equals {
+            background-color: #0067b8;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .btn-equals:hover {
+            background-color: #005da6;
+            border-color: transparent;
+        }
+
+        .btn-equals:active {
+            background-color: #005292;
+        }
+
+        /* Stronger weights for numeric inputs */
+        .btn-num {
+            font-weight: 600;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calc-container">
+        <div class="calc-header">
+            <span>Standard</span>
+        </div>
+
+        <!-- Single unified form architecture interfacing with Flask -->
+        <form method="post" id="calcForm">
+            <!-- Hidden inputs tracking the actual internal states for the Flask backend -->
+            <input type="hidden" name="num1" id="num1" value="">
+            <input type="hidden" name="num2" id="num2" value="">
+            <input type="hidden" name="operation" id="operation" value="">
+
+            <div class="display-container">
+                <div class="expression-preview" id="expressionView">
+                    {% if operation and num1 %}
+                        {{ num1 }} {% if operation == 'add' %}+{% elif operation == 'subtract' %}-{% elif operation == 'multiply' %}×{% elif operation == 'divide' %}÷{% endif %}
+                    {% endif %}
+                </div>
+                <input type="text" class="main-display" id="display" readonly 
+                       value="{% if result is not none %}{{ result }}{% else %}0{% endif %}">
+            </div>
+
+            <div class="button-grid">
+                <!-- Row 1: Utilities -->
+                <button type="button" class="btn-utility" onclick="clearAll()">CE</button>
+                <button type="button" class="btn-utility" onclick="clearAll()">C</button>
+                <button type="button" class="btn-utility" onclick="backspace()">⌫</button>
+                <button type="button" class="btn-op" onclick="setOp('divide')">÷</button>
+
+                <!-- Row 2: 7, 8, 9, Multiply -->
+                <button type="button" class="btn-num" onclick="pressNum('7')">7</button>
+                <button type="button" class="btn-num" onclick="pressNum('8')">8</button>
+                <button type="button" class="btn-num" onclick="pressNum('9')">9</button>
+                <button type="button" class="btn-op" onclick="setOp('multiply')">×</button>
+
+                <!-- Row 3: 4, 5, 6, Subtract -->
+                <button type="button" class="btn-num" onclick="pressNum('4')">4</button>
+                <button type="button" class="btn-num" onclick="pressNum('5')">5</button>
+                <button type="button" class="btn-num" onclick="pressNum('6')">6</button>
+                <button type="button" class="btn-op" onclick="setOp('subtract')">-</button>
+
+                <!-- Row 4: 1, 2, 3, Add -->
+                <button type="button" class="btn-num" onclick="pressNum('1')">1</button>
+                <button type="button" class="btn-num" onclick="pressNum('2')">2</button>
+                <button type="button" class="btn-num" onclick="pressNum('3')">3</button>
+                <button type="button" class="btn-op" onclick="setOp('add')">+</button>
+
+                <!-- Row 5: Negate, 0, Decimal, Equals -->
+                <button type="button" class="btn-num" onclick="negate()">+/-</button>
+                <button type="button" class="btn-num" onclick="pressNum('0')">0</button>
+                <button type="button" class="btn-num" onclick="pressDot()">.</button>
+                <button type="submit" class="btn-equals">=</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        let display = document.getElementById('display');
+        let exprView = document.getElementById('expressionView');
+        let hiddenNum1 = document.getElementById('num1');
+        let hiddenNum2 = document.getElementById('num2');
+        let hiddenOp = document.getElementById('operation');
+        
+        let activeInput = 'num1'; 
+        let currentNum1 = '';
+        let currentNum2 = '';
+        let currentOp = '';
+
+        function pressNum(num) {
+            if (activeInput === 'num1') {
+                if (currentNum1 === '0') currentNum1 = '';
+                currentNum1 += num;
+                display.value = currentNum1;
+                hiddenNum1.value = currentNum1;
+            } else {
+                if (currentNum2 === '0') currentNum2 = '';
+                currentNum2 += num;
+                display.value = currentNum2;
+                hiddenNum2.value = currentNum2;
+            }
+        }
+
+        function setOp(opName) {
+            // If user clicked an operation but hadn't typed anything, assume 0
+            if (currentNum1 === '') {
+                currentNum1 = display.value || '0';
+                hiddenNum1.value = currentNum1;
+            }
+            currentOp = opName;
+            hiddenOp.value = opName;
+            activeInput = 'num2';
+            
+            let opSymbols = { 'add': '+', 'subtract': '-', 'multiply': '×', 'divide': '÷' };
+            exprView.innerText = currentNum1 + ' ' + opSymbols[opName];
+        }
+
+        function pressDot() {
+            if (activeInput === 'num1') {
+                if (!currentNum1.includes('.')) {
+                    currentNum1 += currentNum1 === '' ? '0.' : '.';
+                    display.value = currentNum1;
+                }
+            } else {
+                if (!currentNum2.includes('.')) {
+                    currentNum2 += currentNum2 === '' ? '0.' : '.';
+                    display.value = currentNum2;
+                }
+            }
+        }
+
+        function negate() {
+            if (activeInput === 'num1' && currentNum1 !== '') {
+                currentNum1 = (parseFloat(currentNum1) * -1).toString();
+                display.value = currentNum1;
+                hiddenNum1.value = currentNum1;
+            } else if (activeInput === 'num2' && currentNum2 !== '') {
+                currentNum2 = (parseFloat(currentNum2) * -1).toString();
+                display.value = currentNum2;
+                hiddenNum2.value = currentNum2;
+            }
+        }
+
+        function backspace() {
+            if (activeInput === 'num1') {
+                currentNum1 = currentNum1.slice(0, -1);
+                display.value = currentNum1 || '0';
+                hiddenNum1.value = currentNum1;
+            } else {
+                currentNum2 = currentNum2.slice(0, -1);
+                display.value = currentNum2 || '0';
+                hiddenNum2.value = currentNum2;
+            }
+        }
+
+        function clearAll() {
+            currentNum1 = '';
+            currentNum2 = '';
+            currentOp = '';
+            activeInput = 'num1';
+            display.value = '0';
+            exprView.innerText = '';
+            hiddenNum1.value = '';
+            hiddenNum2.value = '';
+            hiddenOp.value = '';
+        }
+    </script>
+</body>
+</html>
